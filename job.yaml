@@ -1,0 +1,42 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  namespace: anatheobald
+  name: ml-generator-job-{{date "20060102150405"}}
+  labels:
+    app: ml-generator
+spec:
+  ttlSecondsAfterFinished: 86400  # Auto-delete after 24 hours
+  template:
+    spec:
+      containers:
+        - name: ml-generator
+          image: quay.io/anatheobald/ml-generator:0.1
+          args:
+            - "--inputs"
+            - "/data/2023_spotify_ds1.csv"
+            - "/data/2023_spotify_ds2.csv"
+            - "--min-support"
+            - "0.04"
+            - "--min-confidence"
+            - "0.55"
+            - "--max-itemset-size"
+            - "3"
+            - "--out"
+            - "/model/rules.pkl"
+            - "--out-json"
+            - "/model/rules.json"
+          volumeMounts:
+            - name: spotify-dataset
+              mountPath: /data
+            - name: model-volume
+              mountPath: /model
+      restartPolicy: Never
+      volumes:
+        - name: spotify-dataset
+          hostPath:
+            path: /home/datasets/spotify
+            type: Directory
+        - name: model-volume
+          persistentVolumeClaim:
+            claimName: project2-pvc-anatheobald

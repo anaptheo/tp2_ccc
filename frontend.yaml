@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: anatheobald
+  name: frontend-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend-api
+  template:
+    metadata:
+      labels:
+        app: frontend-api
+    spec:
+      containers:
+        - name: frontend
+          image: quay.io/anatheobald/frontend-api:0.4
+          command: ["python3", "app.py"]  # ← Explicitly set the command
+          ports:
+            - containerPort: 50001  # ← Change this to match your Flask port
+          env:
+            - name: MODEL_PATH
+              value: "/model/rules.pkl"
+            - name: MODEL_JSON_PATH
+              value: "/model/rules.json"
+            - name: WATCH_INTERVAL
+              value: "30"
+            - name: FLASK_APP
+              value: "app.py"
+            - name: FLASK_RUN_HOST
+              value: "0.0.0.0"
+            - name: FLASK_RUN_PORT
+              value: "50001"
+          volumeMounts:
+            - name: spotify-dataset
+              mountPath: /data
+              readOnly: true
+            - name: model-volume
+              mountPath: /model
+              readOnly: true
+      volumes:
+        - name: spotify-dataset
+          hostPath:
+            path: /home/datasets/spotify
+            type: Directory
+        - name: model-volume
+          persistentVolumeClaim:
+            claimName: project2-pvc-anatheobald
