@@ -51,7 +51,7 @@ jobs:
         # Commit and push changes
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add kubernetes/frontend.yaml kubernetes/job.yaml
+        git add argocd/job.yaml
         git commit -m "ci: update to images ${{ steps.sha.outputs.SHORT_SHA }}" || exit 0
         git push
       env:
