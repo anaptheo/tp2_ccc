@@ -1,4 +1,4 @@
-name: Build and Push Images
+name: Build and Push ML Job
 
 on:
   push:
@@ -38,8 +38,8 @@ jobs:
         context: ./ml-rule-generator
         push: true
         tags: |
-          ${{ env.REGISTRY }}/${{ env.USERNAME }}/ml-generator:${{ steps.sha.outputs.SHORT_SHA }}
-          ${{ env.REGISTRY }}/${{ env.USERNAME }}/ml-generator:latest
+          ${{ env.REGISTRY }}/${{ env.QUAY_USERNAME }}/ml-generator:${{ steps.sha.outputs.SHORT_SHA }}
+          ${{ env.REGISTRY }}/${{ env.QUAY_USERNAME }}/ml-generator:latest
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
