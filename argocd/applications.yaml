@@ -1,0 +1,49 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: frontend-api
+  namespace: anatheobald  # ← Changed to your namespace
+  annotations:
+    argocd-image-updater.argoproj.io/image-list: frontend-api=quay.io/anatheobald/frontend-api
+    argocd-image-updater.argoproj.io/frontend-api.update-strategy: latest
+    argocd-image-updater.argoproj.io/frontend-api.allow-tags: regexp:^[0-9]+\.[0-9]+$
+    argocd-image-updater.argoproj.io/write-back-method: git
+    argocd-image-updater.argoproj.io/git-branch: main
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/anaptheo/tp2_ccc
+    targetRevision: HEAD
+    path: kubernetes
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: anatheobald
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ml-generator-job
+  namespace: anatheobald  # ← Changed to your namespace
+  annotations:
+    argocd-image-updater.argoproj.io/image-list: ml-generator=quay.io/anatheobald/ml-generator
+    argocd-image-updater.argoproj.io/ml-generator.update-strategy: latest
+    argocd-image-updater.argoproj.io/ml-generator.allow-tags: regexp:^[0-9]+\.[0-9]+$
+    argocd-image-updater.argoproj.io/write-back-method: git
+    argocd-image-updater.argoproj.io/git-branch: main
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/anaptheo/tp2_ccc
+    targetRevision: HEAD
+    path: kubernetes
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: anatheobald
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true

@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   namespace: anatheobald
-  name: ml-generator-job-{{date "20060102150405"}}
+  name: ml-generator-job
   labels:
     app: ml-generator
 spec:

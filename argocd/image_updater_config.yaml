@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-image-updater-config
+  namespace: anatheobald  # ← Changed to your namespace
+data:
+  registries.conf: |
+    registries:
+    - name: Quay
+      prefix: quay.io
+      api_url: https://quay.io
+  git.user: "Argo CD Image Updater"
+  git.email: "argocd-image-updater@argoproj.io"
