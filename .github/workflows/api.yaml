@@ -10,6 +10,9 @@ env:
   REGISTRY: quay.io
   QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
 
+permissions:
+  contents: write
+
 jobs:
   build-push:
     runs-on: ubuntu-latest
