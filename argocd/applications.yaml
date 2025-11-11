@@ -8,7 +8,7 @@ metadata:
     argocd-image-updater.argoproj.io/frontend-api.update-strategy: latest
     argocd-image-updater.argoproj.io/frontend-api.allow-tags: regexp:^[0-9]+\.[0-9]+$
     argocd-image-updater.argoproj.io/write-back-method: git
-    argocd-image-updater.argoproj.io/git-branch: main
+    argocd-image-updater.argoproj.io/git-branch: master
 spec:
   project: default
   source:
@@ -33,7 +33,7 @@ metadata:
     argocd-image-updater.argoproj.io/ml-generator.update-strategy: latest
     argocd-image-updater.argoproj.io/ml-generator.allow-tags: regexp:^[0-9]+\.[0-9]+$
     argocd-image-updater.argoproj.io/write-back-method: git
-    argocd-image-updater.argoproj.io/git-branch: main
+    argocd-image-updater.argoproj.io/git-branch: master
 spec:
   project: default
   source:
