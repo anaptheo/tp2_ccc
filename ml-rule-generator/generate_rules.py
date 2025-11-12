@@ -178,28 +178,8 @@ def get_config_from_env():
     config['out_json'] = os.getenv('OUT_JSON')
     config['max_itemset_size'] = int(os.getenv('MAX_ITEMSET_SIZE', '3'))
 
-    config['frontend_ip'] = os.getenv('FRONTEND_IP')
     config['dataset_name'] = os.getenv('DATASET_NAME', 'default')
     return config
-
-
-# --- Notify frontend API ---
-def notify_frontend(frontend_ip: str, rules_path: str, dataset_name: str):
-    """POST to Flask /reload_rules endpoint"""
-    url = f"{frontend_ip.rstrip('/')}/reload_rules"
-    payload = {
-        "rules_path": rules_path,
-        "dataset_name": dataset_name
-    }
-    try:
-        print(f"🔄 Notifying frontend at {url} ...")
-        resp = requests.post(url, json=payload, timeout=10)
-        if resp.status_code == 200:
-            print(f"✅ Frontend updated successfully: {resp.json()}")
-        else:
-            print(f"⚠️ Frontend returned {resp.status_code}: {resp.text}")
-    except Exception as e:
-        print(f"❌ Failed to notify frontend: {e}")
 
 
 # --- Main ---
@@ -235,9 +215,6 @@ def main():
     if config['out_json']:
         save_rules_json(rules, Path(config['out_json']))
         print(f"Saved JSON rules to {config['out_json']}")
-
-    # Notify the frontend Flask API
-    notify_frontend(config['frontend_ip'], str(out_path), config['dataset_name'])
 
     end()
 
