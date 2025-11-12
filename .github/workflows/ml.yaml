@@ -50,7 +50,7 @@ jobs:
       run: |
         # Update image tags in Kubernetes manifests
         sed -i "s|image: quay.io/anatheobald/ml-generator:.*|image: quay.io/anatheobald/ml-generator:${{ steps.sha.outputs.SHORT_SHA }}|" argocd/job.yaml
-        sed -i "s/^\(\s*name:\s*\)ml-generator-job$/\1ml-generator-job-${{ steps.sha.outputs.SHORT_SHA }}/" argocd/job.yaml
+        sed -i "s/^\(\s*name:\s*\)ml-generator-job[-a-z0-9]*/\1ml-generator-job-${{ steps.sha.outputs.SHORT_SHA }}/" argocd/job.yaml
         # Commit and push changes
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
