@@ -8,6 +8,7 @@ metadata:
   annotations:
     argocd.argoproj.io/hook: PreSync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") | sha256sum }}
 spec:
   ttlSecondsAfterFinished: 86400  # Auto-delete after 24 hours
   template:
@@ -16,8 +17,16 @@ spec:
         - name: ml-generator
           image: quay.io/anatheobald/ml-generator:14e8b7b
           env:
-            - name: FILES_PATH
-              value: "https://homepages.dcc.ufmg.br/~cunha/hosted/cloudcomp-2023s2-datasets/2023_spotify_ds1.csv"
+            - name: DATASET_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: ml-generator-config
+                  key: DATASET_PATH             
+            - name: DATASET_VERSION
+              valueFrom:
+                configMapKeyRef:
+                  name: ml-generator-config
+                  key: DATASET_VERSION             
             - name: MIN_SUPPORT
               value: "0.05"
             - name: MIN_CONFIDENCE

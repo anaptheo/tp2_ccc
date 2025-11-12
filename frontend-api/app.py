@@ -97,7 +97,7 @@ print(f"✅ Loaded {len(rules_df)} rules and {len(metadata)} songs.")
 
 # Track current active rules info
 current_rules_path = RULES_PATH
-current_dataset_name = "default"
+current_dataset_version = "v0"
 
 # ---------- 5. API endpoints ----------
 @app.route("/api/recommender", methods=["POST"])
@@ -124,27 +124,27 @@ def recommend():
 # ---------- 5.1 Reload rules endpoint ----------
 @app.route("/reload_rules", methods=["POST"])
 def reload_rules():
-    global rules_df, current_rules_path, current_dataset_name
+    global rules_df, current_rules_path, current_dataset_version
 
     data = request.get_json()
     rules_path = data.get("rules_path")
-    dataset_name = data.get("dataset_name")
+    dataset_version = data.get("dataset_version")
 
     if not rules_path:
         return jsonify({"error": "Missing 'rules_path' parameter"}), 400
-    if not dataset_name:
-        return jsonify({"error": "Missing 'dataset_name' parameter"}), 400
+    if not dataset_version:
+        return jsonify({"error": "Missing 'dataset_version' parameter"}), 400
 
     try:
         new_rules = load_rules_pickle(rules_path)
         rules_df = new_rules
         current_rules_path = rules_path
-        current_dataset_name = dataset_name
-        print(f"✅ Reloaded rules from {rules_path} (dataset: {dataset_name}), total {len(rules_df)} rules.")
+        current_dataset_version = dataset_version
+        print(f"✅ Reloaded rules from {rules_path} (dataset: {dataset_version}), total {len(rules_df)} rules.")
         return jsonify({
             "message": "Rules successfully reloaded.",
             "rules_path": rules_path,
-            "dataset_name": dataset_name,
+            "dataset_version": dataset_version,
             "num_rules": len(rules_df)
         }), 200
     except Exception as e:
@@ -156,7 +156,7 @@ def check_rules():
     """Return current rules configuration and statistics"""
     return jsonify({
         "rules_path": current_rules_path,
-        "dataset_name": current_dataset_name,
+        "dataset_version": current_dataset_version,
         "num_rules": len(rules_df),
         "status": "active"
     }), 200

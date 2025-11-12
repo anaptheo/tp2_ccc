@@ -7,9 +7,9 @@ Usage:
   python scripts/generate_rules.py
 
 Environment Variables:
-  FILES_PATH, MIN_SUPPORT, MIN_CONFIDENCE, SAMPLE, OUT, OUT_JSON, MAX_ITEMSET_SIZE
+  DATASET_PATH, MIN_SUPPORT, MIN_CONFIDENCE, SAMPLE, OUT, OUT_JSON, MAX_ITEMSET_SIZE
   FRONTEND_IP: Base URL for recommender API (e.g., http://localhost:50001)
-  DATASET_NAME: Optional label for the dataset version
+  dataset_version: Optional label for the dataset version
 """
 import argparse
 import pickle
@@ -213,10 +213,10 @@ def get_config_from_env():
     """Parse configuration from environment variables"""
     config = {}
 
-    inputs_str = os.getenv('FILES_PATH')
-    config['dataset_name'] = inputs_str
+    inputs_str = os.getenv('DATASET_PATH')
+    config['dataset_version'] = os.getenv('DATASET_VERSION')
     if not inputs_str:
-        raise ValueError("FILES_PATH environment variable is required")
+        raise ValueError("DATASET_PATH environment variable is required")
     config['inputs'] = [x.strip() for x in inputs_str.split(',')]
 
     config['min_support'] = float(os.getenv('MIN_SUPPORT', '0.01'))
@@ -239,12 +239,12 @@ def get_config_from_env():
 
 
 # --- Notify frontend API ---
-def notify_frontend(frontend_ip: str, rules_path: str, dataset_name: str):
+def notify_frontend(frontend_ip: str, rules_path: str, dataset_version: str):
     """POST to Flask /reload_rules endpoint"""
     url = f"http://{frontend_ip.rstrip('/')}/reload_rules"
     payload = {
         "rules_path": rules_path,
-        "dataset_name": dataset_name
+        "dataset_version": dataset_version
     }
     try:
         print(f"🔄 Notifying frontend at {url} ...")
@@ -298,7 +298,7 @@ def main():
 
     # Notify the frontend Flask API
     if config['frontend_ip']:
-        notify_frontend(config['frontend_ip'], str(out_path), config['dataset_name'])
+        notify_frontend(config['frontend_ip'], str(out_path), config['dataset_version'])
     else:
         print("⚠️ No FRONTEND_IP provided, skipping frontend notification")
 
