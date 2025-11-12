@@ -186,7 +186,7 @@ def get_config_from_env():
 # --- Notify frontend API ---
 def notify_frontend(frontend_ip: str, rules_path: str, dataset_name: str):
     """POST to Flask /reload_rules endpoint"""
-    url = f"https://{frontend_ip.rstrip('/')}/reload_rules"
+    url = f"http://{frontend_ip.rstrip('/')}/reload_rules"
     payload = {
         "rules_path": rules_path,
         "dataset_name": dataset_name
