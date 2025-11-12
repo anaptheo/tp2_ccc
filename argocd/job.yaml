@@ -17,7 +17,7 @@ spec:
           image: quay.io/anatheobald/ml-generator:5f2c196
           env:
             - name: INPUTS
-              value: "/data/2023_spotify_ds1.csv,/data/2023_spotify_ds2.csv"
+              value: "/data/2023_spotify_ds1.csv"
             - name: MIN_SUPPORT
               value: "0.05"
             - name: MIN_CONFIDENCE
