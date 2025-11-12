@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   namespace: anatheobald
-  name: ml-generator-job-c0a6c3a
+  name: ml-generator-job-14e8b7b
   labels:
     app: ml-generator
   annotations:
@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: ml-generator
-          image: quay.io/anatheobald/ml-generator:c0a6c3a
+          image: quay.io/anatheobald/ml-generator:14e8b7b
           env:
             - name: FILES_PATH
               value: "https://homepages.dcc.ufmg.br/~cunha/hosted/cloudcomp-2023s2-datasets/2023_spotify_ds1.csv"
