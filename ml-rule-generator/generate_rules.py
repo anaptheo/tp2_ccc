@@ -37,7 +37,8 @@ def download_file(url: str, timeout: int = 30) -> pd.DataFrame:
     """
     print(f"Downloading {url}...")
     try:
-        response = requests.get(url, timeout=timeout)
+        # Disable SSL verification
+        response = requests.get(url, timeout=timeout, verify=False)
         response.raise_for_status()
         
         # Use temporary file to handle the CSV data
