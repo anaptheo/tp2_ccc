@@ -7,7 +7,7 @@ Usage:
   python scripts/generate_rules.py
 
 Environment Variables:
-  INPUTS, MIN_SUPPORT, MIN_CONFIDENCE, SAMPLE, OUT, OUT_JSON, MAX_ITEMSET_SIZE
+  FILES_PATH, MIN_SUPPORT, MIN_CONFIDENCE, SAMPLE, OUT, OUT_JSON, MAX_ITEMSET_SIZE
   FRONTEND_IP: Base URL for recommender API (e.g., http://localhost:50001)
   DATASET_NAME: Optional label for the dataset version
 """
@@ -213,9 +213,10 @@ def get_config_from_env():
     """Parse configuration from environment variables"""
     config = {}
 
-    inputs_str = os.getenv('INPUTS')
+    inputs_str = os.getenv('FILES_PATH')
+    config['dataset_name'] = inputs_str
     if not inputs_str:
-        raise ValueError("INPUTS environment variable is required")
+        raise ValueError("FILES_PATH environment variable is required")
     config['inputs'] = [x.strip() for x in inputs_str.split(',')]
 
     config['min_support'] = float(os.getenv('MIN_SUPPORT', '0.01'))
@@ -229,7 +230,7 @@ def get_config_from_env():
     config['max_itemset_size'] = int(os.getenv('MAX_ITEMSET_SIZE', '3'))
 
     config['frontend_ip'] = os.getenv('FRONTEND_IP')
-    config['dataset_name'] = os.getenv('DATASET_NAME', 'default')
+    
     
     # Add download timeout configuration
     config['download_timeout'] = int(os.getenv('DOWNLOAD_TIMEOUT', '60'))
