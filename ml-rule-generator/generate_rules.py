@@ -19,6 +19,7 @@ import os
 import requests
 from pathlib import Path
 from typing import List
+import tempfile
 
 import pandas as pd
 
@@ -27,6 +28,49 @@ try:
     from mlxtend.frequent_patterns import apriori, association_rules, fpgrowth
 except Exception:
     raise ImportError("Install dependencies: pip install mlxtend pandas mlxtend")
+
+
+# --- File downloading helper ---
+def download_file(url: str, timeout: int = 30) -> pd.DataFrame:
+    """
+    Download CSV file from URL and return as pandas DataFrame
+    """
+    print(f"Downloading {url}...")
+    try:
+        response = requests.get(url, timeout=timeout)
+        response.raise_for_status()
+        
+        # Use temporary file to handle the CSV data
+        with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as tmp_file:
+            tmp_file.write(response.content)
+            tmp_path = tmp_file.name
+        
+        # Read the CSV file
+        df = pd.read_csv(tmp_path)
+        
+        # Clean up temporary file
+        os.unlink(tmp_path)
+        
+        print(f"✅ Downloaded {url} successfully ({len(df)} rows)")
+        return df
+        
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Failed to download {url}: {e}")
+        raise
+    except Exception as e:
+        print(f"❌ Error processing {url}: {e}")
+        raise
+
+
+def download_files(file_urls: List[str]) -> List[pd.DataFrame]:
+    """
+    Download multiple CSV files from URLs
+    """
+    dfs = []
+    for url in file_urls:
+        df = download_file(url)
+        dfs.append(df)
+    return dfs
 
 
 # --- Utility timing helper ---
@@ -40,11 +84,13 @@ def timed(label: str):
 
 
 # --- Data loading ---
-def load_transactions(files: List[Path], track_column="track_uri", pid_column="pid",
+def load_transactions(files: List[str], track_column="track_uri", pid_column="pid",
                       sample: int | None = None, aggregate: str = "track"):
-    end = timed("Loading CSVs")
-    dfs = [pd.read_csv(f) for f in files]
-    df = pd.concat(dfs, ignore_index=True)
+    end = timed("Downloading CSVs")
+    
+    # Download all files
+    dfs = download_files(files)
+    
     end()
 
     if aggregate == "artist":
@@ -52,13 +98,16 @@ def load_transactions(files: List[Path], track_column="track_uri", pid_column="p
             raise ValueError("Requested artist aggregation but no artist_name column found")
         track_column = "artist_name"
 
-    if track_column not in df.columns:
-        track_column = "track_name" if "track_name" in df.columns else None
-        if track_column is None:
-            raise ValueError("No track column found (neither track_uri nor track_name present)")
+    # if track_column not in dfs.columns:
+    #     track_column = "track_name" if "track_name" in dfs[0].columns else None
+    #     if track_column is None:
+    #         raise ValueError("No track column found (neither track_uri nor track_name present)")
 
-    if pid_column not in df.columns:
-        raise ValueError("No pid column found in input CSVs")
+    # if pid_column not in dfs.columns:
+    #     raise ValueError("No pid column found in input CSVs")
+
+    # Combine all dataframes
+    df = pd.concat(dfs, ignore_index=True)
 
     print(f"Grouping by '{pid_column}' to form transactions...")
     grouped = df.groupby(pid_column)[track_column].apply(lambda s: s.astype(str).tolist())
@@ -180,6 +229,10 @@ def get_config_from_env():
 
     config['frontend_ip'] = os.getenv('FRONTEND_IP')
     config['dataset_name'] = os.getenv('DATASET_NAME', 'default')
+    
+    # Add download timeout configuration
+    config['download_timeout'] = int(os.getenv('DOWNLOAD_TIMEOUT', '60'))
+    
     return config
 
 
@@ -216,8 +269,13 @@ def main():
 
     end = timed("Full pipeline")
 
-    input_paths = [Path(x) for x in config['inputs']]
-    transactions = load_transactions(input_paths, sample=config['sample'])
+    # Inputs are now URLs instead of local file paths
+    input_urls = config['inputs']
+    transactions = load_transactions(
+        input_urls, 
+        sample=config['sample'],
+        aggregate="track"  # or "artist" if you want artist aggregation
+    )
 
     frequent_itemsets, rules = mine_rules(
         transactions,
@@ -237,12 +295,13 @@ def main():
         print(f"Saved JSON rules to {config['out_json']}")
 
     # Notify the frontend Flask API
-    notify_frontend(config['frontend_ip'], str(out_path), config['dataset_name'])
+    if config['frontend_ip']:
+        notify_frontend(config['frontend_ip'], str(out_path), config['dataset_name'])
+    else:
+        print("⚠️ No FRONTEND_IP provided, skipping frontend notification")
 
     end()
 
 
 if __name__ == "__main__":
     main()
-
-
