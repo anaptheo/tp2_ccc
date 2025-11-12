@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: argocd-image-updater-config
-  namespace: anatheobald  # ← Changed to your namespace
+  namespace: anatheobald 
 data:
   registries.conf: |
     registries:

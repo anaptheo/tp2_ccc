@@ -16,20 +16,10 @@ spec:
       containers:
         - name: frontend
           image: quay.io/anatheobald/frontend-api:0.4
-          command: ["python3", "app.py"]  # ← Explicitly set the command
+          command: ["python3", "app.py"]  
           ports:
-            - containerPort: 50001  # ← Change this to match your Flask port
+            - containerPort: 50001
           env:
-            - name: MODEL_PATH
-              value: "/model/rules.pkl"
-            - name: MODEL_JSON_PATH
-              value: "/model/rules.json"
-            - name: WATCH_INTERVAL
-              value: "30"
-            - name: FLASK_APP
-              value: "app.py"
-            - name: FLASK_RUN_HOST
-              value: "0.0.0.0"
             - name: FLASK_RUN_PORT
               value: "50001"
           volumeMounts:
