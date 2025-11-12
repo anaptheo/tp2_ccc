@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   namespace: anatheobald
-  name: ml-generator-job-bce79a4
+  name: ml-generator-job-f97ba40
   labels:
     app: ml-generator
   annotations:
@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: ml-generator
-          image: quay.io/anatheobald/ml-generator:bce79a4
+          image: quay.io/anatheobald/ml-generator:f97ba40
           env:
             - name: INPUTS
               value: "/data/2023_spotify_ds1.csv"
