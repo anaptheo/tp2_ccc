@@ -99,7 +99,7 @@ print(f"✅ Loaded {len(rules_df)} rules and {len(metadata)} songs.")
 current_rules_path = RULES_PATH
 current_dataset_name = "default"
 
-# ---------- 5. API endpoint ----------
+# ---------- 5. API endpoints ----------
 @app.route("/api/recommender", methods=["POST"])
 def recommend():
     data = request.get_json()
@@ -150,9 +150,17 @@ def reload_rules():
     except Exception as e:
         return jsonify({"error": f"Failed to reload rules: {str(e)}"}), 500
 
+# ---------- 5.2 Check rules endpoint ----------
+@app.route("/check_rules", methods=["GET"])
+def check_rules():
+    """Return current rules configuration and statistics"""
+    return jsonify({
+        "rules_path": current_rules_path,
+        "dataset_name": current_dataset_name,
+        "num_rules": len(rules_df),
+        "status": "active"
+    }), 200
+
 # ---------- 6. Run server ----------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=50001)
-
-
-
