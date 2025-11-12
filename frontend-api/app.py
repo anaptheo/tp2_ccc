@@ -89,13 +89,15 @@ def recommend_multi(song_ids, rules_df, metadata, top_k=10):
     return recs[:top_k]
 
 # ---------- 4. Initialize data at startup ----------
-RULES_PATH = "/model/rules.pkl"              # Pickled rules
-CSV_PATH = "/data/2023_spotify_songs.csv"   # Metadata CSV
-
+RULES_PATH = "/model/rules.pkl"
 print("🔄 Loading rules and metadata...")
 rules_df = load_rules_pickle(RULES_PATH)
 metadata, title_to_id = load_song_metadata(["/data/2023_spotify_ds1.csv", "/data/2023_spotify_ds2.csv"])
 print(f"✅ Loaded {len(rules_df)} rules and {len(metadata)} songs.")
+
+# Track current active rules info
+current_rules_path = RULES_PATH
+current_dataset_name = "default"
 
 # ---------- 5. API endpoint ----------
 @app.route("/api/recommender", methods=["POST"])
@@ -118,6 +120,35 @@ def recommend():
 
     recs = recommend_multi(song_ids, rules_df, metadata)
     return jsonify({"recommendations": recs})
+
+# ---------- 5.1 Reload rules endpoint ----------
+@app.route("/reload_rules", methods=["POST"])
+def reload_rules():
+    global rules_df, current_rules_path, current_dataset_name
+
+    data = request.get_json()
+    rules_path = data.get("rules_path")
+    dataset_name = data.get("dataset_name")
+
+    if not rules_path:
+        return jsonify({"error": "Missing 'rules_path' parameter"}), 400
+    if not dataset_name:
+        return jsonify({"error": "Missing 'dataset_name' parameter"}), 400
+
+    try:
+        new_rules = load_rules_pickle(rules_path)
+        rules_df = new_rules
+        current_rules_path = rules_path
+        current_dataset_name = dataset_name
+        print(f"✅ Reloaded rules from {rules_path} (dataset: {dataset_name}), total {len(rules_df)} rules.")
+        return jsonify({
+            "message": "Rules successfully reloaded.",
+            "rules_path": rules_path,
+            "dataset_name": dataset_name,
+            "num_rules": len(rules_df)
+        }), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to reload rules: {str(e)}"}), 500
 
 # ---------- 6. Run server ----------
 if __name__ == "__main__":

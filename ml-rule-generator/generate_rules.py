@@ -1,31 +1,22 @@
 #!/usr/bin/env python3
 """
-Generate association rules from the Spotify CSV playlists (optimized + instrumented).
+Generate association rules from the Spotify CSV playlists (optimized + instrumented)
+and notify the Flask recommender service when done.
 
-Usage (example):
+Usage:
   python scripts/generate_rules.py
 
 Environment Variables:
-  INPUTS: Comma-separated list of input CSV file paths
-  MIN_SUPPORT: Minimum support threshold (default: 0.01)
-  MIN_CONFIDENCE: Minimum confidence threshold (default: 0.5)
-  SAMPLE: Number of transactions to sample (default: None - use all)
-  OUT: Output pickle file path (default: model/rules.pkl)
-  OUT_JSON: Output JSON file path (optional)
-  MAX_ITEMSET_SIZE: Limit the max size of itemsets (e.g., 3) (optional)
-
-Improvements:
-  - Added timing checkpoints for each stage
-  - Uses sparse=True for TransactionEncoder to reduce memory
-  - Prints progress and dataset stats
-  - Optionally limits itemset size for speed
-  - Uses environment variables for Kubernetes compatibility
+  INPUTS, MIN_SUPPORT, MIN_CONFIDENCE, SAMPLE, OUT, OUT_JSON, MAX_ITEMSET_SIZE
+  FRONTEND_IP: Base URL for recommender API (e.g., http://localhost:50001)
+  DATASET_NAME: Optional label for the dataset version
 """
 import argparse
 import pickle
 import json
 import time
 import os
+import requests
 from pathlib import Path
 from typing import List
 
@@ -35,7 +26,7 @@ try:
     from mlxtend.preprocessing import TransactionEncoder
     from mlxtend.frequent_patterns import apriori, association_rules, fpgrowth
 except Exception:
-    raise ImportError("Install dependencies: pip install mlxtend pandas")
+    raise ImportError("Install dependencies: pip install mlxtend pandas mlxtend")
 
 
 # --- Utility timing helper ---
@@ -171,39 +162,55 @@ def save_rules_json(rules_df: pd.DataFrame, out_path: Path):
 def get_config_from_env():
     """Parse configuration from environment variables"""
     config = {}
-    
-    # Required: INPUTS
+
     inputs_str = os.getenv('INPUTS')
     if not inputs_str:
         raise ValueError("INPUTS environment variable is required")
     config['inputs'] = [x.strip() for x in inputs_str.split(',')]
-    
-    # Optional parameters with defaults
+
     config['min_support'] = float(os.getenv('MIN_SUPPORT', '0.01'))
     config['min_confidence'] = float(os.getenv('MIN_CONFIDENCE', '0.5'))
-    
+
     sample_str = os.getenv('SAMPLE')
     config['sample'] = int(sample_str) if sample_str else None
-    
+
     config['out'] = os.getenv('OUT', 'model/rules.pkl')
     config['out_json'] = os.getenv('OUT_JSON')
-    
-    max_itemset_str = os.getenv('MAX_ITEMSET_SIZE', '3')
-    config['max_itemset_size'] = int(max_itemset_str)
-    
+    config['max_itemset_size'] = int(os.getenv('MAX_ITEMSET_SIZE', '3'))
+
+    config['frontend_ip'] = os.getenv('FRONTEND_IP')
+    config['dataset_name'] = os.getenv('DATASET_NAME', 'default')
     return config
+
+
+# --- Notify frontend API ---
+def notify_frontend(frontend_ip: str, rules_path: str, dataset_name: str):
+    """POST to Flask /reload_rules endpoint"""
+    url = f"{frontend_ip.rstrip('/')}/reload_rules"
+    payload = {
+        "rules_path": rules_path,
+        "dataset_name": dataset_name
+    }
+    try:
+        print(f"🔄 Notifying frontend at {url} ...")
+        resp = requests.post(url, json=payload, timeout=10)
+        if resp.status_code == 200:
+            print(f"✅ Frontend updated successfully: {resp.json()}")
+        else:
+            print(f"⚠️ Frontend returned {resp.status_code}: {resp.text}")
+    except Exception as e:
+        print(f"❌ Failed to notify frontend: {e}")
 
 
 # --- Main ---
 def main():
-    # Get configuration from environment variables
     try:
         config = get_config_from_env()
     except ValueError as e:
         print(f"Configuration error: {e}")
         return 1
-    
-    print("Configuration loaded from environment variables:")
+
+    print("Configuration loaded:")
     for key, value in config.items():
         print(f"  {key}: {value}")
 
@@ -229,10 +236,11 @@ def main():
         save_rules_json(rules, Path(config['out_json']))
         print(f"Saved JSON rules to {config['out_json']}")
 
+    # Notify the frontend Flask API
+    notify_frontend(config['frontend_ip'], str(out_path), config['dataset_name'])
+
     end()
 
 
 if __name__ == "__main__":
     main()
-
-    

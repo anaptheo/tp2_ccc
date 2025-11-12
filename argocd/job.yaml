@@ -26,6 +26,8 @@ spec:
               value: "/model/rules.pkl"
             - name: OUT_JSON
               value: "/model/rules.json"
+            - name: FRONTEND_IP
+              value: "10.43.127.130"
           volumeMounts:
             - name: spotify-dataset
               mountPath: /data
