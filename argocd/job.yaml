@@ -11,7 +11,7 @@ spec:
     spec:
       containers:
         - name: ml-generator
-          image: quay.io/anatheobald/ml-generator:4f6015e
+          image: quay.io/anatheobald/ml-generator:a2aca9c
           env:
             - name: INPUTS
               value: "/data/2023_spotify_ds1.csv,/data/2023_spotify_ds2.csv"
