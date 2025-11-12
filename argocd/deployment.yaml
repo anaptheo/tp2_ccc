@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: quay.io/anatheobald/frontend-api:a3b37fc
+          image: quay.io/anatheobald/frontend-api:7ab28ea
           command: ["python3", "app.py"]  
           ports:
             - containerPort: 50001
