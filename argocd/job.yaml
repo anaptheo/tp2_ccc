@@ -12,20 +12,17 @@ spec:
       containers:
         - name: ml-generator
           image: quay.io/anatheobald/ml-generator:4f6015e
-          args:
-            - "--inputs"
-            - "/data/2023_spotify_ds1.csv"
-            - "/data/2023_spotify_ds2.csv"
-            - "--min-support"
-            - "0.04"
-            - "--min-confidence"
-            - "0.55"
-            - "--max-itemset-size"
-            - "3"
-            - "--out"
-            - "/model/rules.pkl"
-            - "--out-json"
-            - "/model/rules.json"
+          env:
+            - name: INPUTS
+              value: "/data/2023_spotify_ds1.csv,/data/2023_spotify_ds2.csv"
+            - name: MIN_SUPPORT
+              value: "0.05"
+            - name: MIN_CONFIDENCE
+              value: "0.5"
+            - name: OUT
+              value: "/model/rules.pkl"
+            - name: OUT_JSON
+              value: "/model/rules.json"
           volumeMounts:
             - name: spotify-dataset
               mountPath: /data

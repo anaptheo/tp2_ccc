@@ -3,19 +3,29 @@
 Generate association rules from the Spotify CSV playlists (optimized + instrumented).
 
 Usage (example):
-  python scripts/generate_rules.py --inputs ../2023_spotify_ds1.csv ../2023_spotify_ds2.csv \
-    --min-support 0.05 --min-confidence 0.5 --sample 1000 --out rules.pkl
+  python scripts/generate_rules.py
+
+Environment Variables:
+  INPUTS: Comma-separated list of input CSV file paths
+  MIN_SUPPORT: Minimum support threshold (default: 0.01)
+  MIN_CONFIDENCE: Minimum confidence threshold (default: 0.5)
+  SAMPLE: Number of transactions to sample (default: None - use all)
+  OUT: Output pickle file path (default: model/rules.pkl)
+  OUT_JSON: Output JSON file path (optional)
+  MAX_ITEMSET_SIZE: Limit the max size of itemsets (e.g., 3) (optional)
 
 Improvements:
   - Added timing checkpoints for each stage
   - Uses sparse=True for TransactionEncoder to reduce memory
   - Prints progress and dataset stats
   - Optionally limits itemset size for speed
+  - Uses environment variables for Kubernetes compatibility
 """
 import argparse
 import pickle
 import json
 import time
+import os
 from pathlib import Path
 from typing import List
 
@@ -137,11 +147,13 @@ def mine_rules(transactions: List[List[str]],
 
 # --- Save helpers ---
 def save_rules(obj, out_path: Path):
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "wb") as f:
         pickle.dump(obj, f)
 
 
 def save_rules_json(rules_df: pd.DataFrame, out_path: Path):
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     simplified = []
     for _, row in rules_df.iterrows():
         simplified.append({
@@ -155,44 +167,70 @@ def save_rules_json(rules_df: pd.DataFrame, out_path: Path):
         json.dump(simplified, f, ensure_ascii=False, indent=2)
 
 
-# --- Main CLI ---
+# --- Environment variable parsing ---
+def get_config_from_env():
+    """Parse configuration from environment variables"""
+    config = {}
+    
+    # Required: INPUTS
+    inputs_str = os.getenv('INPUTS')
+    if not inputs_str:
+        raise ValueError("INPUTS environment variable is required")
+    config['inputs'] = [x.strip() for x in inputs_str.split(',')]
+    
+    # Optional parameters with defaults
+    config['min_support'] = float(os.getenv('MIN_SUPPORT', '0.01'))
+    config['min_confidence'] = float(os.getenv('MIN_CONFIDENCE', '0.5'))
+    
+    sample_str = os.getenv('SAMPLE')
+    config['sample'] = int(sample_str) if sample_str else None
+    
+    config['out'] = os.getenv('OUT', 'model/rules.pkl')
+    config['out_json'] = os.getenv('OUT_JSON')
+    
+    max_itemset_str = os.getenv('MAX_ITEMSET_SIZE', '3')
+    config['max_itemset_size'] = int(max_itemset_str)
+    
+    return config
+
+
+# --- Main ---
 def main():
-    p = argparse.ArgumentParser()
-    p.add_argument("--inputs", nargs="+", required=True, help="Input CSV file paths")
-    p.add_argument("--min-support", type=float, default=0.01)
-    p.add_argument("--min-confidence", type=float, default=0.5)
-    p.add_argument("--sample", type=int, default=None)
-    p.add_argument("--out", type=str, default="model/rules.pkl")
-    p.add_argument("--out-json", type=str, default=None)
-    p.add_argument("--max-itemset-size", type=int, default=None,
-                   help="Limit the max size of itemsets (e.g., 3)")
-    args = p.parse_args()
+    # Get configuration from environment variables
+    try:
+        config = get_config_from_env()
+    except ValueError as e:
+        print(f"Configuration error: {e}")
+        return 1
+    
+    print("Configuration loaded from environment variables:")
+    for key, value in config.items():
+        print(f"  {key}: {value}")
 
     end = timed("Full pipeline")
 
-    input_paths = [Path(x) for x in args.inputs]
-    transactions = load_transactions(input_paths, sample=args.sample)
+    input_paths = [Path(x) for x in config['inputs']]
+    transactions = load_transactions(input_paths, sample=config['sample'])
 
     frequent_itemsets, rules = mine_rules(
         transactions,
-        min_support=args.min_support,
-        min_confidence=args.min_confidence,
+        min_support=config['min_support'],
+        min_confidence=config['min_confidence'],
         method="fpgrowth",
         prefilter=True,
-        max_itemset_size=args.max_itemset_size,
+        max_itemset_size=config['max_itemset_size'],
     )
 
-    out_path = Path(args.out)
+    out_path = Path(config['out'])
     save_rules({"frequent_itemsets": frequent_itemsets, "rules": rules}, out_path)
     print(f"Saved pickle to {out_path}")
 
-    if args.out_json:
-        save_rules_json(rules, Path(args.out_json))
-        print(f"Saved JSON rules to {args.out_json}")
+    if config['out_json']:
+        save_rules_json(rules, Path(config['out_json']))
+        print(f"Saved JSON rules to {config['out_json']}")
 
     end()
 
 
 if __name__ == "__main__":
     main()
-
