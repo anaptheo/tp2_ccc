@@ -12,13 +12,7 @@ metadata:
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
 spec:
   ttlSecondsAfterFinished: 600
-  selector:
-    matchLabels:
-      app: ml-generator  # Required selector
   template:
-    metadata:
-      labels:
-        app: ml-generator  # Must match selector
     spec:
       containers:
         - name: ml-generator
