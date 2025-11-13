@@ -2,15 +2,16 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   namespace: anatheobald
-  # name: ml-generator-job
-  generateName: ml-generator-job-
+  name: ml-generator-job
+  # generateName: ml-generator-job-
   labels:
     app: ml-generator
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
-    # argocd.argoproj.io/hook: PreSync 
-    # argocd.argoproj.io/hook: PreSync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+      argocd.argoproj.io/refresh: "hard"
+      argocd.argoproj.io/hook: Sync
+      argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+  #   # argocd.argoproj.io/hook: PreSync
+  #   argocd.argoproj.io/sync-wave: "1"
 spec:
   ttlSecondsAfterFinished: 600
   template:
