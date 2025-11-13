@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   namespace: anatheobald
-  name: ml-generator-job-97846ef
+  name: ml-generator-job
   labels:
     app: ml-generator
   annotations:
