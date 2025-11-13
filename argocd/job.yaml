@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: ml-generator
-          image: quay.io/anatheobald/ml-generator:f769ca4
+          image: quay.io/anatheobald/ml-generator:97846ef
           env:
             - name: DATASET_PATH
               valueFrom:
