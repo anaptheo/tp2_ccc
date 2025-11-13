@@ -11,7 +11,7 @@ metadata:
     # argocd.argoproj.io/hook: PreSync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
-  ttlSecondsAfterFinished: 86400  # Auto-delete after 24 hours
+  ttlSecondsAfterFinished: 300
   template:
     spec:
       containers:
