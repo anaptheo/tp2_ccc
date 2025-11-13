@@ -7,9 +7,9 @@ metadata:
   labels:
     app: ml-generator
   annotations:
-    argocd.argoproj.io/sync-options: Replace=true
-    # argocd.argoproj.io/hook: PreSync  # Changed from Sync to PreSync
-    # argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    # argocd.argoproj.io/sync-options: Replace=true
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
 spec:
   ttlSecondsAfterFinished: 600
   selector:
