@@ -12,10 +12,13 @@ metadata:
     # argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
   ttlSecondsAfterFinished: 600
+  selector:
+    matchLabels:
+      app: ml-generator  # Required selector
   template:
     metadata:
       labels:
-        app: ml-generator  # This is required
+        app: ml-generator  # Must match selector
     spec:
       containers:
         - name: ml-generator
