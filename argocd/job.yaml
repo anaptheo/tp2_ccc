@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   namespace: anatheobald
-  name: ml-generator-job-e550bb7
+  name: ml-generator-job-97846ef
   labels:
     app: ml-generator
   annotations:
@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: ml-generator
-          image: quay.io/anatheobald/ml-generator:e550bb7
+          image: quay.io/anatheobald/ml-generator:97846ef
           env:
             - name: DATASET_PATH
               valueFrom:
