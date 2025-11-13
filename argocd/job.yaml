@@ -6,9 +6,10 @@ metadata:
   labels:
     app: ml-generator
   annotations:
-    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook: Sync
+    # argocd.argoproj.io/hook: PreSync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
-    checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") | sha256sum }}
+    # checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") | sha256sum }}
 spec:
   ttlSecondsAfterFinished: 86400  # Auto-delete after 24 hours
   template:
