@@ -1,0 +1,313 @@
+metadata:
+  creationTimestamp: "2025-11-12T21:32:02Z"
+  generation: 2147
+  managedFields:
+  - apiVersion: argoproj.io/v1alpha1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:spec:
+        .: {}
+        f:destination:
+          .: {}
+          f:namespace: {}
+          f:server: {}
+        f:project: {}
+        f:source:
+          .: {}
+          f:path: {}
+          f:repoURL: {}
+        f:syncPolicy:
+          .: {}
+          f:automated: {}
+      f:status:
+        .: {}
+        f:health: {}
+        f:sourceHydrator: {}
+        f:summary: {}
+        f:sync:
+          .: {}
+          f:comparedTo:
+            .: {}
+            f:destination: {}
+            f:source: {}
+    manager: argocd-server
+    operation: Update
+    time: "2025-11-13T02:17:45Z"
+  - apiVersion: argoproj.io/v1alpha1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:status:
+        f:controllerNamespace: {}
+        f:health:
+          f:lastTransitionTime: {}
+          f:status: {}
+        f:history: {}
+        f:operationState:
+          .: {}
+          f:finishedAt: {}
+          f:message: {}
+          f:operation:
+            .: {}
+            f:initiatedBy:
+              .: {}
+              f:username: {}
+            f:retry: {}
+            f:sync:
+              .: {}
+              f:revision: {}
+              f:syncStrategy:
+                .: {}
+                f:hook: {}
+          f:phase: {}
+          f:startedAt: {}
+          f:syncResult:
+            .: {}
+            f:resources: {}
+            f:revision: {}
+            f:source:
+              .: {}
+              f:path: {}
+              f:repoURL: {}
+        f:reconciledAt: {}
+        f:resourceHealthSource: {}
+        f:resources: {}
+        f:sourceType: {}
+        f:summary:
+          f:images: {}
+        f:sync:
+          f:comparedTo:
+            f:destination:
+              f:namespace: {}
+              f:server: {}
+            f:source:
+              f:path: {}
+              f:repoURL: {}
+          f:revision: {}
+          f:status: {}
+    manager: argocd-application-controller
+    operation: Update
+    time: "2025-11-14T01:15:07Z"
+  name: anatheobald4
+  namespace: argocd
+  resourceVersion: "18514256"
+  uid: a8ea6746-01ce-45d2-9849-2f6f0627fa08
+spec:
+  destination:
+    namespace: anatheobald
+    server: https://kubernetes.default.svc
+  project: anatheobald-project
+  source:
+    path: argocd
+    repoURL: https://github.com/anaptheo/tp2_ccc
+  syncPolicy:
+    automated: {}
+status:
+  controllerNamespace: argocd
+  health:
+    lastTransitionTime: "2025-11-13T02:07:33Z"
+    status: Healthy
+  history:
+  - deployStartedAt: "2025-11-13T01:43:47Z"
+    deployedAt: "2025-11-13T01:44:29Z"
+    id: 16
+    initiatedBy:
+      automated: true
+    revision: b5b06b71b9e695101c9a28abd12d3e0ba4a9e9cc
+    source:
+      path: argocd
+      repoURL: https://github.com/anaptheo/tp2_ccc
+  - deployStartedAt: "2025-11-13T01:45:42Z"
+    deployedAt: "2025-11-13T01:46:23Z"
+    id: 17
+    initiatedBy:
+      automated: true
+    revision: e58167ede5e3baf5c5aa74f11f790705eb8dcceb
+    source:
+      path: argocd
+      repoURL: https://github.com/anaptheo/tp2_ccc
+  - deployStartedAt: "2025-11-13T01:47:15Z"
+    deployedAt: "2025-11-13T01:47:57Z"
+    id: 18
+    initiatedBy:
+      automated: true
+    revision: dd9ba93a0af784e3684c47e1c08fd8eb78bea842
+    source:
+      path: argocd
+      repoURL: https://github.com/anaptheo/tp2_ccc
+  - deployStartedAt: "2025-11-13T01:49:23Z"
+    deployedAt: "2025-11-13T01:50:06Z"
+    id: 19
+    initiatedBy:
+      automated: true
+    revision: 08bf9bf0c566efbe85f794bafddffd189e3fc358
+    source:
+      path: argocd
+      repoURL: https://github.com/anaptheo/tp2_ccc
+  - deployStartedAt: "2025-11-13T01:52:11Z"
+    deployedAt: "2025-11-13T01:52:53Z"
+    id: 20
+    initiatedBy:
+      username: anatheobald
+    revision: 08bf9bf0c566efbe85f794bafddffd189e3fc358
+    source:
+      path: argocd
+      repoURL: https://github.com/anaptheo/tp2_ccc
+  - deployStartedAt: "2025-11-13T02:08:13Z"
+    deployedAt: "2025-11-13T02:08:57Z"
+    id: 21
+    initiatedBy:
+      username: anatheobald
+    revision: 33a818538be8b4d861a85d0a49235aa82b585d54
+    source:
+      path: argocd
+      repoURL: https://github.com/anaptheo/tp2_ccc
+  - deployStartedAt: "2025-11-13T02:10:21Z"
+    deployedAt: "2025-11-13T02:11:03Z"
+    id: 22
+    initiatedBy:
+      username: anatheobald
+    revision: 0ce4938c635f3d5899530ff4d2f6d0b846dafcf4
+    source:
+      path: argocd
+      repoURL: https://github.com/anaptheo/tp2_ccc
+  - deployStartedAt: "2025-11-13T02:12:27Z"
+    deployedAt: "2025-11-13T02:13:09Z"
+    id: 23
+    initiatedBy:
+      username: anatheobald
+    revision: 50d219f821b755333a1a8d93ecc75d2b9ef28eaf
+    source:
+      path: argocd
+      repoURL: https://github.com/anaptheo/tp2_ccc
+  - deployStartedAt: "2025-11-13T02:15:41Z"
+    deployedAt: "2025-11-13T02:16:21Z"
+    id: 24
+    initiatedBy:
+      username: anatheobald
+    revision: 50d219f821b755333a1a8d93ecc75d2b9ef28eaf
+    source:
+      path: argocd
+      repoURL: https://github.com/anaptheo/tp2_ccc
+  - deployStartedAt: "2025-11-13T02:17:45Z"
+    deployedAt: "2025-11-13T02:18:30Z"
+    id: 25
+    initiatedBy:
+      username: anatheobald
+    revision: 594798edcfe222876bd20d32e017a7cb13a1134b
+    source:
+      path: argocd
+      repoURL: https://github.com/anaptheo/tp2_ccc
+  operationState:
+    finishedAt: "2025-11-13T02:18:30Z"
+    message: successfully synced (all tasks run)
+    operation:
+      initiatedBy:
+        username: anatheobald
+      retry: {}
+      sync:
+        revision: 594798edcfe222876bd20d32e017a7cb13a1134b
+        syncStrategy:
+          hook: {}
+    phase: Succeeded
+    startedAt: "2025-11-13T02:17:45Z"
+    syncResult:
+      resources:
+      - group: batch
+        hookPhase: Succeeded
+        hookType: PreSync
+        images:
+        - quay.io/anatheobald/ml-generator:97846ef
+        kind: Job
+        message: job.batch/ml-generator-job created
+        name: ml-generator-job
+        namespace: anatheobald
+        syncPhase: PreSync
+        version: v1
+      - group: ""
+        hookPhase: Succeeded
+        kind: ConfigMap
+        message: configmap/ml-generator-config unchanged
+        name: ml-generator-config
+        namespace: anatheobald
+        status: Synced
+        syncPhase: Sync
+        version: v1
+      - group: ""
+        hookPhase: Succeeded
+        kind: PersistentVolumeClaim
+        message: persistentvolumeclaim/project2-pvc-anatheobald unchanged
+        name: project2-pvc-anatheobald
+        namespace: anatheobald
+        status: Synced
+        syncPhase: Sync
+        version: v1
+      - group: ""
+        hookPhase: Succeeded
+        kind: Service
+        message: service/frontend-api unchanged
+        name: frontend-api
+        namespace: anatheobald
+        status: Synced
+        syncPhase: Sync
+        version: v1
+      - group: apps
+        hookPhase: Running
+        images:
+        - quay.io/anatheobald/frontend-api:7ab28ea
+        kind: Deployment
+        message: deployment.apps/frontend-api unchanged
+        name: frontend-api
+        namespace: anatheobald
+        status: Synced
+        syncPhase: Sync
+        version: v1
+      revision: 594798edcfe222876bd20d32e017a7cb13a1134b
+      source:
+        path: argocd
+        repoURL: https://github.com/anaptheo/tp2_ccc
+  reconciledAt: "2025-11-14T01:15:07Z"
+  resourceHealthSource: appTree
+  resources:
+  - kind: ConfigMap
+    name: ml-generator-config
+    namespace: anatheobald
+    status: Synced
+    version: v1
+  - health:
+      status: Healthy
+    kind: PersistentVolumeClaim
+    name: project2-pvc-anatheobald
+    namespace: anatheobald
+    status: Synced
+    version: v1
+  - health:
+      status: Healthy
+    kind: Service
+    name: frontend-api
+    namespace: anatheobald
+    status: Synced
+    version: v1
+  - group: apps
+    health:
+      status: Healthy
+    kind: Deployment
+    name: frontend-api
+    namespace: anatheobald
+    status: Synced
+    syncWave: 2
+    version: v1
+  sourceHydrator: {}
+  sourceType: Directory
+  summary:
+    images:
+    - quay.io/anatheobald/frontend-api:7ab28ea
+  sync:
+    comparedTo:
+      destination:
+        namespace: anatheobald
+        server: https://kubernetes.default.svc
+      source:
+        path: argocd
+        repoURL: https://github.com/anaptheo/tp2_ccc
+    revision: 594798edcfe222876bd20d32e017a7cb13a1134b
+    status: Synced
