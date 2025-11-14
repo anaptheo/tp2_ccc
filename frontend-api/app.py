@@ -104,7 +104,7 @@ current_dataset_version = "v0"
 def recommend():
     data = request.get_json()
     input_songs = data.get("songs", [])
-    print("INPUT SONGS", input_songs)
+    print("INPUT SONGS", input_songs, flush=True)
 
     # Convert song titles to track IDs
     song_ids = set()
@@ -162,6 +162,26 @@ def check_rules():
         "status": "active"
     }), 200
 
+@app.route("/get_rules", methods=["GET"])
+def get_rules():
+    sample_titles = list(title_to_id.keys())[:50]
+    sample_rules = []
+    for i, (_, row) in enumerate(rules_df.iterrows()):
+        if i >= 10:
+            break
+        sample_rules.append({
+            "antecedents": list(row['antecedents']),
+            "consequents": list(row['consequents']),
+            "confidence": row["confidence"],
+            "lift": row["lift"],
+        })
+
+    return jsonify({
+        "num_songs": len(metadata),
+        "num_rules": len(rules_df),
+        "sample_titles": sample_titles,
+        "sample_rules": sample_rules,
+    }), 200
 # ---------- 6. Run server ----------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=50001)
