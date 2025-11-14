@@ -108,7 +108,7 @@ def mine_rules(
     rules = association_rules(itemsets, metric="confidence", min_threshold=min_confidence)
     print(f"   ✔ {len(rules)} rules")
 
-    # convert frozensets → lists for JSON safety
+    # convert frozensets → lists
     rules["antecedents"] = rules["antecedents"].apply(list)
     rules["consequents"] = rules["consequents"].apply(list)
 
@@ -116,7 +116,7 @@ def mine_rules(
 
 
 # ------------------------------------------------------------
-# Save pickle in API format
+# Save pickle for Flask API
 # ------------------------------------------------------------
 def save_pickle(itemsets, rules, out_path: Path):
     obj = {"frequent_itemsets": itemsets, "rules": rules}
@@ -169,7 +169,7 @@ def notify_frontend(ip: str, rules_path: str, dataset_version: str):
 
 
 # ------------------------------------------------------------
-# Config
+# Load config
 # ------------------------------------------------------------
 def get_config():
     cfg = {}
@@ -180,4 +180,39 @@ def get_config():
 
     cfg["inputs"] = [x.strip() for x in ds.split(",")]
     cfg["min_support"] = float(os.getenv("MIN_SUPPORT", "0.01"))
-    cfg["min_confidence"_]()
+    cfg["min_confidence"] = float(os.getenv("MIN_CONFIDENCE", "0.2"))
+    cfg["sample"] = int(os.getenv("SAMPLE", "0")) or None
+    cfg["out"] = Path(os.getenv("OUT", "/model/rules.pkl"))
+    cfg["out_json"] = Path(os.getenv("OUT_JSON", "/model/rules.json"))
+    cfg["max_itemset_size"] = int(os.getenv("MAX_ITEMSET_SIZE", "3"))
+    cfg["frontend_ip"] = os.getenv("FRONTEND_IP")
+    cfg["dataset_version"] = os.getenv("DATASET_VERSION", "unknown")
+
+    return cfg
+
+
+# ------------------------------------------------------------
+# Main
+# ------------------------------------------------------------
+if __name__ == "__main__":
+    cfg = get_config()
+
+    print("⚙ Config:")
+    print(json.dumps({k: str(v) for k, v in cfg.items()}, indent=2))
+
+    tx = load_transactions(cfg["inputs"], cfg["sample"])
+
+    itemsets, rules = mine_rules(
+        tx,
+        cfg["min_support"],
+        cfg["min_confidence"],
+        cfg["max_itemset_size"],
+    )
+
+    save_pickle(itemsets, rules, cfg["out"])
+    save_json(rules, cfg["out_json"])
+
+    if cfg["frontend_ip"]:
+        notify_frontend(cfg["frontend_ip"], str(cfg["out"]), cfg["dataset_version"])
+
+    print("🏁 Done.")
