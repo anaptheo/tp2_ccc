@@ -24,6 +24,10 @@ spec:
           env:
             - name: FLASK_RUN_PORT
               value: "50001"
+            - name: FLASK_ENV
+              value: "production"
+            - name: FLASK_DEBUG
+              value: "0"
           volumeMounts:
             - name: spotify-dataset
               mountPath: /data
