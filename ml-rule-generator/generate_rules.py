@@ -85,41 +85,30 @@ def timed(label: str):
 
 
 # --- Data loading ---
-def load_transactions(files: List[str],
-                      track_column="track_uri",
-                      pid_column="pid",
-                      sample: int | None = None,
-                      aggregate: str = "track"):
+def load_transactions(files, sample=None):
     end = timed("Downloading CSVs")
-    
-    # Download all files
     dfs = download_files(files)
-    
     end()
 
-    # --- Build a unified "song_name" identifier ---
-    # Format: "artist_name — track_name"
-    for i, df in enumerate(dfs):
-        if "artist_name" not in df.columns or "track_name" not in df.columns:
-            raise ValueError("CSV must contain artist_name and track_name columns")
-
-        dfs[i]["song_id"] = df["artist_name"].astype(str) + " — " + df["track_name"].astype(str)
-
-    # Combine all dataframes
+    # Merge everything
     df = pd.concat(dfs, ignore_index=True)
 
-    print(f"Grouping by '{pid_column}' to form transactions...")
+    # We only use track_name, no artist_name
+    if "track_name" not in df.columns:
+        raise ValueError("CSV missing track_name column")
 
-    grouped = df.groupby(pid_column)["song_id"].apply(lambda s: s.astype(str).tolist())
+    track_column = "track_name"
+    pid_column = "pid"
+
+    print(f"Grouping by '{pid_column}' using ONLY '{track_column}'...")
+    grouped = df.groupby(pid_column)[track_column].apply(lambda s: s.astype(str).tolist())
     transactions = grouped.tolist()
 
-    if sample is not None:
+    if sample:
         transactions = transactions[:sample]
-        print(f"Sampling first {sample} playlists...")
 
-    print(f"Loaded {len(transactions)} transactions, avg length={sum(map(len, transactions)) / len(transactions):.1f}")
+    print(f"Loaded {len(transactions)} transactions")
     return transactions
-
 
 # --- Frequent itemset mining ---
 def mine_rules(transactions: List[List[str]],

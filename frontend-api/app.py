@@ -1,45 +1,77 @@
 from flask import Flask, request, jsonify
 import pickle
 import csv
+import pandas as pd
 
 app = Flask(__name__)
 
-# ---------- 1. Load song metadata ----------
+# -------------------------------------------------------
+# 1. Load song metadata + flexible name lookup
+# -------------------------------------------------------
+
 def load_song_metadata(csv_path):
-    """Load metadata using only track_name as the ID."""
-    lookup = {}
-    title_to_title = {}
+    """
+    Load songs from 2023_spotify_songs.csv.
+    Creates:
+      metadata: title -> {title, artist}
+      lookup_df: full dataframe for substring search
+    """
+    df = pd.read_csv(csv_path)
+    df["track_name"] = df["track_name"].astype(str).str.strip()
+    df["artist_name"] = df["artist_name"].astype(str).str.strip()
+    df["track_name_lower"] = df["track_name"].str.lower()
 
-    with open(csv_path, newline='', encoding='utf-8') as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            title = row.get("track_name", "").strip()
-            artist = row.get("artist_name", "").strip()
+    metadata = {
+        row["track_name"]: {
+            "title": row["track_name"],
+            "artist": row["artist_name"]
+        }
+        for _, row in df.iterrows()
+    }
 
-            if title:
-                lookup[title] = {
-                    "title": title,
-                    "artist": artist,
-                }
-                title_to_title[title.lower()] = title
+    return metadata, df
 
-    return lookup, title_to_title
 
-# ---------- 2. Load pickled rules ----------
+# -------------------------------------------------------
+# 2. Load rules pickle
+# -------------------------------------------------------
+
 def load_rules_pickle(path):
-    """Load preprocessed rules saved with pickle (expects dict with 'rules' DataFrame)."""
+    """Load preprocessed rules saved with pickle."""
     with open(path, "rb") as f:
         data = pickle.load(f)
     rules_df = data.get("rules")
     if rules_df is None:
         raise ValueError("Pickle file does not contain 'rules' DataFrame")
+
     return rules_df
 
-# ---------- 3. Recommendation logic ----------
+
+# -------------------------------------------------------
+# 3. Song lookup (substring search)
+# -------------------------------------------------------
+
+def resolve_song_name(user_text: str):
+    """
+    Return list of track_name that partially match the given text.
+    Example: "sweet home alabama" -> ["Sweet Home Alabama"]
+    """
+    query = user_text.lower().strip()
+    matches = lookup_df[
+        lookup_df["track_name_lower"].str.contains(query, na=False)
+    ]
+
+    return matches["track_name"].unique().tolist()
+
+
+# -------------------------------------------------------
+# 4. Recommendation logic (your original logic preserved)
+# -------------------------------------------------------
+
 def recommend_multi(song_ids, rules_df, metadata, top_k=10):
     candidates = []
 
-    # Iterate over DataFrame rows
+    # Strong multi-antecedent match
     for _, row in rules_df.iterrows():
         antecedents = set(row['antecedents'])
         consequents = set(row['consequents'])
@@ -48,7 +80,7 @@ def recommend_multi(song_ids, rules_df, metadata, top_k=10):
             for c in consequents:
                 candidates.append((c, row['confidence'], row['lift']))
 
-    # Fallback: individual antecedent matches if no subset matches
+    # Fallback: match individual antecedents
     if not candidates:
         for song_id in song_ids:
             for _, row in rules_df.iterrows():
@@ -56,40 +88,47 @@ def recommend_multi(song_ids, rules_df, metadata, top_k=10):
                     for c in row['consequents']:
                         candidates.append((c, row['confidence'], row['lift']))
 
-    # Sort by confidence * lift
+    # Sort by score
     candidates.sort(key=lambda x: x[1] * x[2], reverse=True)
 
-    # Deduplicate and format
+    # Deduplicate
     seen = set()
     recs = []
     for c, conf, lift in candidates:
         if c not in seen and c not in song_ids:
             seen.add(c)
-            song_info = metadata.get(c, {"title": c, "artist": "Unknown", "album": "", "genre": ""})
+            info = metadata.get(c, {"title": c, "artist": "Unknown"})
             recs.append({
                 "track_id": c,
-                "title": song_info.get("title", c),
-                "artist": song_info.get("artist", "Unknown"),
-                "album": song_info.get("album", ""),
-                "genre": song_info.get("genre", ""),
+                "title": info.get("title", c),
+                "artist": info.get("artist", "Unknown"),
                 "confidence": conf,
                 "lift": lift
             })
 
     return recs[:top_k]
 
-# ---------- 4. Initialize data at startup ----------
+
+# -------------------------------------------------------
+# 5. Initialization
+# -------------------------------------------------------
+
 RULES_PATH = "/model/rules.pkl"
+SONG_CSV_PATH = "/data/2023_spotify_songs.csv"
+
 print("🔄 Loading rules and metadata...")
 rules_df = load_rules_pickle(RULES_PATH)
-metadata, title_to_id = load_song_metadata("/data/2023_spotify_songs.csv")
+metadata, lookup_df = load_song_metadata(SONG_CSV_PATH)
 print(f"✅ Loaded {len(rules_df)} rules and {len(metadata)} songs.")
 
-# Track current active rules info
 current_rules_path = RULES_PATH
 current_dataset_version = "v0"
 
-# ---------- 5. API endpoints ----------
+
+# -------------------------------------------------------
+# 6. API: POST /api/recommender
+# -------------------------------------------------------
+
 @app.route("/api/recommender", methods=["POST"])
 def recommend():
     data = request.get_json()
@@ -98,12 +137,16 @@ def recommend():
 
     song_ids = set()
 
-    for s in input_songs:
-        key = s.strip().lower()
-        if key in title_to_id:
-            song_ids.add(title_to_id[key])   # this returns the proper track_name
-        else:
-            print(f"⚠️ No match for input '{s}'", flush=True)
+    for text in input_songs:
+        matches = resolve_song_name(text)
+        print(f"Resolved '{text}' -> {matches}", flush=True)
+
+        if not matches:
+            print(f"⚠️ No match for input '{text}'", flush=True)
+            continue
+
+        for m in matches:
+            song_ids.add(m)
 
     if not song_ids:
         return jsonify({"error": "No valid songs found in request."}), 400
@@ -112,7 +155,40 @@ def recommend():
     return jsonify({"recommendations": recs})
 
 
-# ---------- 5.1 Reload rules endpoint ----------
+# -------------------------------------------------------
+# 7. GET /api/rules?song=NAME
+# -------------------------------------------------------
+
+@app.get("/api/rules")
+def api_rules_for_song():
+    song = request.args.get("song")
+    if not song:
+        return jsonify({"error": "missing song parameter"}), 400
+
+    matches = resolve_song_name(song)
+    if not matches:
+        return jsonify({"error": "song not found"}), 404
+
+    out = {}
+    for m in matches:
+        subset = rules_df[rules_df["antecedents"].apply(lambda a: m in a)]
+        out[m] = [
+            {
+                "antecedents": list(row["antecedents"]),
+                "consequents": list(row["consequents"]),
+                "confidence": row["confidence"],
+                "lift": row["lift"],
+            }
+            for _, row in subset.iterrows()
+        ]
+
+    return jsonify(out)
+
+
+# -------------------------------------------------------
+# 8. Reload rules endpoint
+# -------------------------------------------------------
+
 @app.route("/reload_rules", methods=["POST"])
 def reload_rules():
     global rules_df, current_rules_path, current_dataset_version
@@ -123,45 +199,46 @@ def reload_rules():
 
     if not rules_path:
         return jsonify({"error": "Missing 'rules_path' parameter"}), 400
-    if not dataset_version:
-        return jsonify({"error": "Missing 'dataset_version' parameter"}), 400
 
     try:
-        new_rules = load_rules_pickle(rules_path)
-        rules_df = new_rules
+        rules_df = load_rules_pickle(rules_path)
         current_rules_path = rules_path
-        current_dataset_version = dataset_version
-        print(f"✅ Reloaded rules from {rules_path} (dataset: {dataset_version}), total {len(rules_df)} rules.")
+        current_dataset_version = dataset_version or "unknown"
+
+        print(f"✅ Reloaded {len(rules_df)} rules from {rules_path}")
         return jsonify({
             "message": "Rules successfully reloaded.",
             "rules_path": rules_path,
-            "dataset_version": dataset_version,
+            "dataset_version": current_dataset_version,
             "num_rules": len(rules_df)
-        }), 200
+        })
     except Exception as e:
-        return jsonify({"error": f"Failed to reload rules: {str(e)}"}), 500
+        return jsonify({"error": str(e)}), 500
 
-# ---------- 5.2 Check rules endpoint ----------
+
+# -------------------------------------------------------
+# 9. Diagnostics
+# -------------------------------------------------------
+
 @app.route("/check_rules", methods=["GET"])
 def check_rules():
-    """Return current rules configuration and statistics"""
     return jsonify({
         "rules_path": current_rules_path,
         "dataset_version": current_dataset_version,
-        "num_rules": len(rules_df),
-        "status": "active"
-    }), 200
+        "num_rules": len(rules_df)
+    })
+
 
 @app.route("/get_rules", methods=["GET"])
 def get_rules():
-    sample_titles = list(title_to_id.keys())[:50]
+    sample_titles = lookup_df["track_name"].tolist()[:50]
     sample_rules = []
     for i, (_, row) in enumerate(rules_df.iterrows()):
         if i >= 10:
             break
         sample_rules.append({
-            "antecedents": list(row['antecedents']),
-            "consequents": list(row['consequents']),
+            "antecedents": list(row["antecedents"]),
+            "consequents": list(row["consequents"]),
             "confidence": row["confidence"],
             "lift": row["lift"],
         })
@@ -171,7 +248,12 @@ def get_rules():
         "num_rules": len(rules_df),
         "sample_titles": sample_titles,
         "sample_rules": sample_rules,
-    }), 200
-# ---------- 6. Run server ----------
+    })
+
+
+# -------------------------------------------------------
+# 10. Start server
+# -------------------------------------------------------
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=50001)
