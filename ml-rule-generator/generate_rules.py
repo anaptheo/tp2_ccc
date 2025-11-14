@@ -1,299 +1,183 @@
 #!/usr/bin/env python3
 """
-Generate association rules from the Spotify CSV playlists (optimized + instrumented)
-and notify the Flask recommender service when done.
-
-Usage:
-  python scripts/generate_rules.py
+Generate association rules from Spotify playlist CSVs (track_name only)
+and notify the Flask API when rules are ready.
 
 Environment Variables:
-  DATASET_PATH, MIN_SUPPORT, MIN_CONFIDENCE, SAMPLE, OUT, OUT_JSON, MAX_ITEMSET_SIZE
-  FRONTEND_IP: Base URL for recommender API (e.g., http://localhost:50001)
-  dataset_version: Optional label for the dataset version
+  DATASET_PATH     comma-separated CSV URLs
+  MIN_SUPPORT
+  MIN_CONFIDENCE
+  SAMPLE
+  OUT
+  OUT_JSON
+  MAX_ITEMSET_SIZE
+  FRONTEND_IP
+  DATASET_VERSION
 """
-import argparse
-import pickle
+
+import os
 import json
 import time
-import os
-import requests
+import pickle
+import tempfile
 from pathlib import Path
 from typing import List
-import tempfile
 
 import pandas as pd
+import requests
 
-try:
-    from mlxtend.preprocessing import TransactionEncoder
-    from mlxtend.frequent_patterns import apriori, association_rules, fpgrowth
-except Exception:
-    raise ImportError("Install dependencies: pip install mlxtend pandas mlxtend")
+from mlxtend.preprocessing import TransactionEncoder
+from mlxtend.frequent_patterns import fpgrowth, association_rules
 
 
-# --- File downloading helper ---
-def download_file(url: str, timeout: int = 30) -> pd.DataFrame:
-    """
-    Download CSV file from URL and return as pandas DataFrame
-    """
-    print(f"Downloading {url}...")
+# ------------------------------------------------------------
+# Download CSV
+# ------------------------------------------------------------
+def download_csv(url: str) -> pd.DataFrame:
+    print(f"⬇ Downloading: {url}")
+
     try:
-        # Disable SSL verification
-        response = requests.get(url, timeout=timeout, verify=False)
-        response.raise_for_status()
-        
-        # Use temporary file to handle the CSV data
-        with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as tmp_file:
-            tmp_file.write(response.content)
-            tmp_path = tmp_file.name
-        
-        # Read the CSV file
+        resp = requests.get(url, timeout=60, verify=False)
+        resp.raise_for_status()
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
+            tmp.write(resp.content)
+            tmp_path = tmp.name
+
         df = pd.read_csv(tmp_path)
-        
-        # Clean up temporary file
         os.unlink(tmp_path)
-        
-        print(f"✅ Downloaded {url} successfully ({len(df)} rows)")
+
+        print(f"   ✔ Loaded {len(df)} rows")
         return df
-        
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Failed to download {url}: {e}")
-        raise
+
     except Exception as e:
-        print(f"❌ Error processing {url}: {e}")
+        print(f"❌ Failed to download: {e}")
         raise
 
 
-def download_files(file_urls: List[str]) -> List[pd.DataFrame]:
-    """
-    Download multiple CSV files from URLs
-    """
-    dfs = []
-    for url in file_urls:
-        df = download_file(url)
-        dfs.append(df)
-    return dfs
-
-
-# --- Utility timing helper ---
-def timed(label: str):
-    """Context-like timing print helper"""
-    print(f"[{label}] starting...")
-    t0 = time.time()
-    def done():
-        print(f"[{label}] done in {time.time() - t0:.2f}s")
-    return done
-
-
-# --- Data loading ---
-def load_transactions(files, sample=None):
-    end = timed("Downloading CSVs")
-    dfs = download_files(files)
-    end()
-
-    # Merge everything
+# ------------------------------------------------------------
+# Load transactions (track_name grouped by PID)
+# ------------------------------------------------------------
+def load_transactions(urls: List[str], sample=None) -> List[List[str]]:
+    dfs = [download_csv(u) for u in urls]
     df = pd.concat(dfs, ignore_index=True)
 
-    # We only use track_name, no artist_name
+    if "pid" not in df.columns:
+        raise ValueError("CSV missing 'pid' column")
+
     if "track_name" not in df.columns:
-        raise ValueError("CSV missing track_name column")
+        raise ValueError("CSV missing 'track_name' column")
 
-    track_column = "track_name"
-    pid_column = "pid"
+    df["track_name"] = df["track_name"].astype(str).str.strip()
 
-    print(f"Grouping by '{pid_column}' using ONLY '{track_column}'...")
-    grouped = df.groupby(pid_column)[track_column].apply(lambda s: s.astype(str).tolist())
+    grouped = df.groupby("pid")["track_name"].apply(list)
     transactions = grouped.tolist()
 
     if sample:
         transactions = transactions[:sample]
 
-    print(f"Loaded {len(transactions)} transactions")
+    print(f"📦 Total playlists (transactions): {len(transactions)}")
     return transactions
 
-# --- Frequent itemset mining ---
-def mine_rules(transactions: List[List[str]],
-               min_support=0.01,
-               min_confidence=0.5,
-               method="fpgrowth",
-               prefilter=True,
-               max_itemset_size=None):
-    from collections import Counter
 
-    n_transactions = len(transactions)
-    min_count = max(1, int(min_support * n_transactions))
-
-    print(f"Prefilter={prefilter}, min_support={min_support}, transactions={n_transactions}")
-    if prefilter:
-        print("Counting item frequencies...")
-        flat = Counter()
-        for t in transactions:
-            flat.update(set(t))
-        frequent_items = {item for item, cnt in flat.items() if cnt >= min_count}
-
-        print(f"Keeping {len(frequent_items)} frequent items out of {len(flat)}")
-        filtered_tx = [[it for it in t if it in frequent_items] for t in transactions]
-        filtered_tx = [t for t in filtered_tx if t]
-    else:
-        filtered_tx = transactions
-
-    # One-hot encoding (sparse)
-    end = timed("TransactionEncoder (sparse)")
+# ------------------------------------------------------------
+# Mine itemsets & rules
+# ------------------------------------------------------------
+def mine_rules(
+    transactions: List[List[str]],
+    min_support: float,
+    min_confidence: float,
+    max_itemset_size: int,
+):
+    print("🧾 Encoding transactions...")
     te = TransactionEncoder()
-    te_ary = te.fit(filtered_tx).transform(filtered_tx, sparse=True)
-    df = pd.DataFrame.sparse.from_spmatrix(te_ary, columns=te.columns_)
-    end()
+    te_matrix = te.fit(transactions).transform(transactions, sparse=True)
+    df = pd.DataFrame.sparse.from_spmatrix(te_matrix, columns=te.columns_)
 
-    print(f"Encoded matrix shape: {df.shape}")
+    print(f"   ✔ Encoded matrix: {df.shape}")
 
-    # Mining
-    end = timed(f"Running {method}")
-    if method == "apriori":
-        frequent_itemsets = apriori(df, min_support=min_support, use_colnames=True)
-    else:
-        frequent_itemsets = fpgrowth(df, min_support=min_support, use_colnames=True)
-    end()
+    print("⚡ Mining frequent itemsets with FPGrowth...")
+    itemsets = fpgrowth(df, min_support=min_support, use_colnames=True)
 
-    if frequent_itemsets.empty:
-        print("No frequent itemsets found with given min_support.")
-        return frequent_itemsets, pd.DataFrame()
-
-    # Optional filter for large itemsets
     if max_itemset_size:
-        frequent_itemsets = frequent_itemsets[
-            frequent_itemsets["itemsets"].apply(lambda x: len(x) <= max_itemset_size)
-        ]
+        itemsets = itemsets[itemsets["itemsets"].apply(lambda s: len(s) <= max_itemset_size)]
 
-    print(f"Found {len(frequent_itemsets)} frequent itemsets")
+    print(f"   ✔ Found {len(itemsets)} itemsets")
 
-    # Generate rules
-    end = timed("Generating association rules")
-    rules = association_rules(frequent_itemsets, metric="confidence", min_threshold=min_confidence)
-    end()
+    print("✨ Generating association rules...")
+    rules = association_rules(itemsets, metric="confidence", min_threshold=min_confidence)
+    print(f"   ✔ {len(rules)} rules")
 
-    print(f"Generated {len(rules)} rules")
-    return frequent_itemsets, rules
+    # convert frozensets → lists for JSON safety
+    rules["antecedents"] = rules["antecedents"].apply(list)
+    rules["consequents"] = rules["consequents"].apply(list)
+
+    return itemsets, rules
 
 
-# --- Save helpers ---
-def save_rules(obj, out_path: Path):
+# ------------------------------------------------------------
+# Save pickle in API format
+# ------------------------------------------------------------
+def save_pickle(itemsets, rules, out_path: Path):
+    obj = {"frequent_itemsets": itemsets, "rules": rules}
     out_path.parent.mkdir(parents=True, exist_ok=True)
+
     with open(out_path, "wb") as f:
         pickle.dump(obj, f)
 
+    print(f"💾 Saved pickle to {out_path}")
 
-def save_rules_json(rules_df: pd.DataFrame, out_path: Path):
+
+# ------------------------------------------------------------
+# Save JSON (optional)
+# ------------------------------------------------------------
+def save_json(rules, out_path: Path):
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    simplified = []
-    for _, row in rules_df.iterrows():
-        simplified.append({
-            "antecedents": list(row["antecedents"]),
-            "consequents": list(row["consequents"]),
-            "support": float(row.get("support", 0)),
-            "confidence": float(row.get("confidence", 0)),
-            "lift": float(row.get("lift", 0)),
+    rules_list = []
+
+    for _, row in rules.iterrows():
+        rules_list.append({
+            "antecedents": row["antecedents"],
+            "consequents": row["consequents"],
+            "support": float(row["support"]),
+            "confidence": float(row["confidence"]),
+            "lift": float(row["lift"]),
         })
+
     with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(simplified, f, ensure_ascii=False, indent=2)
+        json.dump(rules_list, f, indent=2, ensure_ascii=False)
+
+    print(f"💾 Saved JSON to {out_path}")
 
 
-# --- Environment variable parsing ---
-def get_config_from_env():
-    """Parse configuration from environment variables"""
-    config = {}
-
-    inputs_str = os.getenv('DATASET_PATH')
-    config['dataset_version'] = os.getenv('DATASET_VERSION')
-    if not inputs_str:
-        raise ValueError("DATASET_PATH environment variable is required")
-    config['inputs'] = [x.strip() for x in inputs_str.split(',')]
-
-    config['min_support'] = float(os.getenv('MIN_SUPPORT', '0.01'))
-    config['min_confidence'] = float(os.getenv('MIN_CONFIDENCE', '0.5'))
-
-    sample_str = os.getenv('SAMPLE')
-    config['sample'] = int(sample_str) if sample_str else None
-
-    config['out'] = os.getenv('OUT', 'model/rules.pkl')
-    config['out_json'] = os.getenv('OUT_JSON')
-    config['max_itemset_size'] = int(os.getenv('MAX_ITEMSET_SIZE', '3'))
-
-    config['frontend_ip'] = os.getenv('FRONTEND_IP')
-    
-    
-    # Add download timeout configuration
-    config['download_timeout'] = int(os.getenv('DOWNLOAD_TIMEOUT', '60'))
-    
-    return config
-
-
-# --- Notify frontend API ---
-def notify_frontend(frontend_ip: str, rules_path: str, dataset_version: str):
-    """POST to Flask /reload_rules endpoint"""
-    url = f"http://{frontend_ip.rstrip('/')}/reload_rules"
+# ------------------------------------------------------------
+# Notify Flask API
+# ------------------------------------------------------------
+def notify_frontend(ip: str, rules_path: str, dataset_version: str):
+    url = f"http://{ip}/reload_rules"
     payload = {
         "rules_path": rules_path,
-        "dataset_version": dataset_version
+        "dataset_version": dataset_version,
     }
+
+    print(f"🔔 Notifying Flask API at {url}")
     try:
-        print(f"🔄 Notifying frontend at {url} ...")
-        resp = requests.post(url, json=payload, timeout=10)
-        if resp.status_code == 200:
-            print(f"✅ Frontend updated successfully: {resp.json()}")
-        else:
-            print(f"⚠️ Frontend returned {resp.status_code}: {resp.text}")
+        r = requests.post(url, json=payload, timeout=10)
+        print(f"   ✔ Response: {r.status_code} {r.text}")
     except Exception as e:
-        print(f"❌ Failed to notify frontend: {e}")
+        print(f"❌ Notification failed: {e}")
 
 
-# --- Main ---
-def main():
-    try:
-        config = get_config_from_env()
-    except ValueError as e:
-        print(f"Configuration error: {e}")
-        return 1
+# ------------------------------------------------------------
+# Config
+# ------------------------------------------------------------
+def get_config():
+    cfg = {}
 
-    print("Configuration loaded:")
-    for key, value in config.items():
-        print(f"  {key}: {value}")
+    ds = os.getenv("DATASET_PATH")
+    if not ds:
+        raise ValueError("Missing env: DATASET_PATH")
 
-    end = timed("Full pipeline")
-
-    # Inputs are now URLs instead of local file paths
-    input_urls = config['inputs']
-    transactions = load_transactions(
-        input_urls, 
-        sample=config['sample'],
-        aggregate="track"  # or "artist" if you want artist aggregation
-    )
-
-    frequent_itemsets, rules = mine_rules(
-        transactions,
-        min_support=config['min_support'],
-        min_confidence=config['min_confidence'],
-        method="fpgrowth",
-        prefilter=True,
-        max_itemset_size=config['max_itemset_size'],
-    )
-
-    out_path = Path(config['out'])
-    save_rules({"frequent_itemsets": frequent_itemsets, "rules": rules}, out_path)
-    print(f"Saved pickle to {out_path}")
-
-    if config['out_json']:
-        save_rules_json(rules, Path(config['out_json']))
-        print(f"Saved JSON rules to {config['out_json']}")
-
-    # Notify the frontend Flask API
-    if config['frontend_ip']:
-        notify_frontend(config['frontend_ip'], str(out_path), config['dataset_version'])
-    else:
-        print("⚠️ No FRONTEND_IP provided, skipping frontend notification")
-
-    end()
-
-
-if __name__ == "__main__":
-    main()
-
-
+    cfg["inputs"] = [x.strip() for x in ds.split(",")]
+    cfg["min_support"] = float(os.getenv("MIN_SUPPORT", "0.01"))
+    cfg["min_confidence"_]()
