@@ -250,7 +250,9 @@ def get_rules():
         "sample_rules": sample_rules,
     })
 
-
+@app.get("/debug/songs")
+def list_songs():
+    return {"songs": sorted(list(known_songs))[:200]}
 # -------------------------------------------------------
 # 10. Start server
 # -------------------------------------------------------
