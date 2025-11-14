@@ -102,6 +102,7 @@ print(f"✅ Loaded {len(rules_df)} rules and {len(metadata)} songs.")
 def recommend():
     data = request.get_json()
     input_songs = data.get("songs", [])
+    print("INPUT SONGS", input_songs)
 
     # Convert song titles to track IDs
     song_ids = set()
