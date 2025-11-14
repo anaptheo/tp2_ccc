@@ -10,12 +10,6 @@ app = Flask(__name__)
 # -------------------------------------------------------
 
 def load_song_metadata(csv_path):
-    """
-    Load songs from 2023_spotify_songs.csv.
-    Creates:
-      metadata: title -> {title, artist}
-      lookup_df: full dataframe for substring search
-    """
     df = pd.read_csv(csv_path)
     df["track_name"] = df["track_name"].astype(str).str.strip()
     df["artist_name"] = df["artist_name"].astype(str).str.strip()
@@ -37,35 +31,40 @@ def load_song_metadata(csv_path):
 # -------------------------------------------------------
 
 def load_rules_pickle(path):
-    """Load preprocessed rules saved with pickle."""
     with open(path, "rb") as f:
         data = pickle.load(f)
     rules_df = data.get("rules")
     if rules_df is None:
         raise ValueError("Pickle file does not contain 'rules' DataFrame")
-
     return rules_df
 
 
 # -------------------------------------------------------
-# 3. Song lookup (substring search)
+# 3. Song lookup (substring search) + DEBUG
 # -------------------------------------------------------
 
 def resolve_song_name(user_text: str):
-    """
-    Return list of track_name that partially match the given text.
-    Example: "sweet home alabama" -> ["Sweet Home Alabama"]
-    """
     query = user_text.lower().strip()
+
+    print("\n========== DEBUG resolve_song_name ==========", flush=True)
+    print(f"User text: '{user_text}' -> Query: '{query}'", flush=True)
+
     matches = lookup_df[
         lookup_df["track_name_lower"].str.contains(query, na=False)
     ]
+
+    if matches.empty:
+        print("No substring matches found!", flush=True)
+    else:
+        print("Matches:", matches["track_name"].unique().tolist()[:20], flush=True)
+
+    print("========== END DEBUG resolve_song_name ==========\n", flush=True)
 
     return matches["track_name"].unique().tolist()
 
 
 # -------------------------------------------------------
-# 4. Recommendation logic (your original logic preserved)
+# 4. Recommendation logic
 # -------------------------------------------------------
 
 def recommend_multi(song_ids, rules_df, metadata, top_k=10):
@@ -80,7 +79,7 @@ def recommend_multi(song_ids, rules_df, metadata, top_k=10):
             for c in consequents:
                 candidates.append((c, row['confidence'], row['lift']))
 
-    # Fallback: match individual antecedents
+    # Fallback
     if not candidates:
         for song_id in song_ids:
             for _, row in rules_df.iterrows():
@@ -88,10 +87,9 @@ def recommend_multi(song_ids, rules_df, metadata, top_k=10):
                     for c in row['consequents']:
                         candidates.append((c, row['confidence'], row['lift']))
 
-    # Sort by score
+    # Sort + dedupe
     candidates.sort(key=lambda x: x[1] * x[2], reverse=True)
 
-    # Deduplicate
     seen = set()
     recs = []
     for c, conf, lift in candidates:
@@ -116,24 +114,26 @@ def recommend_multi(song_ids, rules_df, metadata, top_k=10):
 RULES_PATH = "/model/rules.pkl"
 SONG_CSV_PATH = "/data/2023_spotify_songs.csv"
 
-print("🔄 Loading rules and metadata...")
+print("🔄 Loading rules and metadata...", flush=True)
 rules_df = load_rules_pickle(RULES_PATH)
 metadata, lookup_df = load_song_metadata(SONG_CSV_PATH)
-print(f"✅ Loaded {len(rules_df)} rules and {len(metadata)} songs.")
+print(f"✅ Loaded {len(rules_df)} rules and {len(metadata)} songs.", flush=True)
 
 current_rules_path = RULES_PATH
 current_dataset_version = "v0"
 
 
 # -------------------------------------------------------
-# 6. API: POST /api/recommender
+# 6. API: POST /api/recommender + DEBUG
 # -------------------------------------------------------
 
 @app.route("/api/recommender", methods=["POST"])
 def recommend():
     data = request.get_json()
     input_songs = data.get("songs", [])
-    print("INPUT SONGS:", input_songs, flush=True)
+
+    print("\n=========== DEBUG /api/recommender ===========", flush=True)
+    print("Raw input songs:", input_songs, flush=True)
 
     song_ids = set()
 
@@ -142,11 +142,14 @@ def recommend():
         print(f"Resolved '{text}' -> {matches}", flush=True)
 
         if not matches:
-            print(f"⚠️ No match for input '{text}'", flush=True)
+            print(f"⚠️ No match for '{text}'", flush=True)
             continue
 
         for m in matches:
             song_ids.add(m)
+
+    print("Final resolved song IDs:", list(song_ids), flush=True)
+    print("=========== END DEBUG /api/recommender ===========\n", flush=True)
 
     if not song_ids:
         return jsonify({"error": "No valid songs found in request."}), 400
@@ -156,7 +159,7 @@ def recommend():
 
 
 # -------------------------------------------------------
-# 7. GET /api/rules?song=NAME
+# 7. GET /api/rules?song
 # -------------------------------------------------------
 
 @app.get("/api/rules")
@@ -250,9 +253,29 @@ def get_rules():
         "sample_rules": sample_rules,
     })
 
+
+# -------------------------------------------------------
+# 9b. NEW DEBUG ENDPOINT: /debug/lookup
+# -------------------------------------------------------
+
+@app.get("/debug/lookup")
+def debug_lookup():
+    q = request.args.get("q", "")
+    matches = resolve_song_name(q)
+    return {"query": q, "matches": matches}
+
+
+# -------------------------------------------------------
+# 9c. FIXED DEBUG SONG LIST
+# -------------------------------------------------------
+
 @app.get("/debug/songs")
 def list_songs():
-    return {"songs": sorted(list(known_songs))[:200]}
+    return {
+        "songs": sorted(lookup_df["track_name"].unique().tolist())[:200]
+    }
+
+
 # -------------------------------------------------------
 # 10. Start server
 # -------------------------------------------------------
