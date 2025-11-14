@@ -6,7 +6,7 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: frontend-api
@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: quay.io/anatheobald/frontend-api:0a3d461
+          image: quay.io/anatheobald/frontend-api:7ab28ea
           command: ["python3", "app.py"]  
           ports:
             - containerPort: 50001
