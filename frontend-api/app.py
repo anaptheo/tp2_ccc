@@ -97,11 +97,7 @@ def recommend_multi(song_ids, rules_df, metadata, top_k=10):
             seen.add(c)
             info = metadata.get(c, {"title": c, "artist": "Unknown"})
             recs.append({
-                "track_id": c,
                 "title": info.get("title", c),
-                "artist": info.get("artist", "Unknown"),
-                "confidence": conf,
-                "lift": lift
             })
 
     return recs[:top_k]
