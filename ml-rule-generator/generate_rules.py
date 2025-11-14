@@ -85,8 +85,11 @@ def timed(label: str):
 
 
 # --- Data loading ---
-def load_transactions(files: List[str], track_column="track_uri", pid_column="pid",
-                      sample: int | None = None, aggregate: str = "track"):
+def load_transactions(files: List[str],
+                      track_column="track_uri",
+                      pid_column="pid",
+                      sample: int | None = None,
+                      aggregate: str = "track"):
     end = timed("Downloading CSVs")
     
     # Download all files
@@ -94,24 +97,20 @@ def load_transactions(files: List[str], track_column="track_uri", pid_column="pi
     
     end()
 
-    if aggregate == "artist":
-        if "artist_name" not in df.columns:
-            raise ValueError("Requested artist aggregation but no artist_name column found")
-        track_column = "artist_name"
+    # --- Build a unified "song_name" identifier ---
+    # Format: "artist_name — track_name"
+    for i, df in enumerate(dfs):
+        if "artist_name" not in df.columns or "track_name" not in df.columns:
+            raise ValueError("CSV must contain artist_name and track_name columns")
 
-    # if track_column not in dfs.columns:
-    #     track_column = "track_name" if "track_name" in dfs[0].columns else None
-    #     if track_column is None:
-    #         raise ValueError("No track column found (neither track_uri nor track_name present)")
-
-    # if pid_column not in dfs.columns:
-    #     raise ValueError("No pid column found in input CSVs")
+        dfs[i]["song_id"] = df["artist_name"].astype(str) + " — " + df["track_name"].astype(str)
 
     # Combine all dataframes
     df = pd.concat(dfs, ignore_index=True)
 
     print(f"Grouping by '{pid_column}' to form transactions...")
-    grouped = df.groupby(pid_column)[track_column].apply(lambda s: s.astype(str).tolist())
+
+    grouped = df.groupby(pid_column)["song_id"].apply(lambda s: s.astype(str).tolist())
     transactions = grouped.tolist()
 
     if sample is not None:
